@@ -1,0 +1,102 @@
+# Sentinel Day One - role-to-access-topology mapping
+# This is the customer-specific config. Edit per org. Sentinel reads it at runtime.
+# Variables: ${team}, ${team_repo}, ${employee_id} are substituted at provisioning time.
+
+roles:
+  sre:
+    repos:
+      owned:
+        - infra-core
+        - k8s-platform
+        - sre-runbooks
+      shared_write:
+        # Modern SREs write to app code on specific paths.
+        # CODEOWNERS in those repos must include the SRE team for these globs.
+        - "payments-api/instrumentation/**"
+        - "payments-api/health/**"
+        - "payments-api/reliability/**"
+        - "fraud-api/instrumentation/**"
+      read:
+        - payments-api
+        - fraud-api
+        - user-api
+        - notifications-api
+    test_repos:
+      owned:
+        - chaos-tests
+        - synthetic-monitors
+      read:
+        - e2e-tests
+        - load-tests
+    shared_libs:
+      - reliability-libs
+      - otel-collectors
+      - circuit-breaker-go
+    clusters:
+      - prod-us-east
+      - prod-us-west
+      - staging
+      - dev
+    vault_scope: "sre/platform"
+    observability_role: "admin"
+    ci_pipelines:
+      "infra-*": "write"
+      "*": "read"
+    alert_rules: "owner"
+    test_management: "read"
+
+  backend:
+    repos:
+      owned:
+        - "${team_repo}"
+      shared_write: []
+      read:
+        - shared-libs
+        - "${team_repo}-infra"
+        - reliability-libs
+    test_repos:
+      owned: []
+      read:
+        - e2e-tests
+        - api-test-suite
+    shared_libs: []
+    clusters:
+      - staging
+      - dev
+    vault_scope: "app/${team_repo}"
+    observability_role: "viewer"
+    ci_pipelines:
+      "${team_repo}-*": "write"
+    alert_rules: "read"
+    test_management: "read"
+
+  qa:
+    repos:
+      owned:
+        - e2e-tests
+        - api-test-suite
+        - load-tests
+      shared_write: []
+      read:
+        - payments-api
+        - fraud-api
+        - user-api
+        - notifications-api
+        - infra-core
+    test_repos:
+      owned:
+        - e2e-tests
+        - api-test-suite
+        - load-tests
+      read: []
+    shared_libs: []
+    clusters:
+      - staging
+      - dev
+    vault_scope: "staging-test"
+    observability_role: "viewer"
+    ci_pipelines:
+      "e2e-*": "write"
+      "load-*": "write"
+    alert_rules: "none"
+    test_management: "owner"

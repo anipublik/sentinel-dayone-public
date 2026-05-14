@@ -1,0 +1,129 @@
+# Sentinel Day One — Helm values
+# Override per environment: helm upgrade sentinel . -f values-prod.yaml
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/your-org/sentinel-day-one
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: sentinel.your-domain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: sentinel-tls
+      hosts:
+        - sentinel.your-domain.com
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Neo4j — disable to use an external instance
+neo4j:
+  enabled: true
+  image: neo4j:5.26-community
+  password: "changeme-in-production"
+  storage: 50Gi
+  memory:
+    heap: "4G"
+    pagecache: "2G"
+
+# Catalog configuration
+catalog:
+  source: workday  # workday | servicenow | bamboohr | mock
+
+# Connector credentials — stored in a Kubernetes Secret
+# Set these via: helm upgrade sentinel . --set secrets.anthropicApiKey=sk-...
+secrets:
+  anthropicApiKey: ""
+  openaiApiKey: ""
+  workdayClientId: ""
+  workdayClientSecret: ""
+  workdayTenantUrl: ""
+  snowInstanceUrl: ""
+  snowUsername: ""
+  snowPassword: ""
+  bamboohrSubdomain: ""
+  bamboohrApiKey: ""
+  githubToken: ""
+  githubOrg: ""
+  githubWebhookSecret: ""
+  slackBotToken: ""
+  slackWebhookSecret: ""
+  linearApiKey: ""
+  linearWebhookSecret: ""
+  confluenceUrl: ""
+  confluenceUser: ""
+  confluenceApiToken: ""
+  vaultAddr: ""
+  vaultToken: ""
+  grafanaUrl: ""
+  grafanaAdminToken: ""
+
+# Application config (non-secret)
+config:
+  embeddingModel: text-embedding-3-large
+  anthropicModel: claude-sonnet-4-5
+  corsOrigins: "https://sentinel.your-domain.com"
+  logLevel: info
+  metricsEnabled: "true"
+  autoApplySchema: "true"
+
+# Ingestion cron jobs
+ingestion:
+  enabled: true
+  schedule:
+    github: "0 * * * *"      # every hour
+    slack: "*/30 * * * *"    # every 30 min
+    linear: "*/15 * * * *"   # every 15 min
+    confluence: "0 2 * * *"  # nightly
+
+# Buddy digest cron — provisions recent hires and notifies onboarding buddies
+buddyDigest:
+  enabled: false
+  schedule: "0 9 * * 1"   # Mondays at 09:00
+  sinceDays: 7
+
+serviceAccount:
+  create: true
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: "/metrics"
+  prometheus.io/port: "8080"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: [ALL]

@@ -1,0 +1,12 @@
+apiVersion: v2
+name: sentinel-day-one
+description: Onboarding agent for engineering hires
+type: application
+version: 0.2.0
+appVersion: "0.2.0"
+home: https://github.com/your-org/sentinel-day-one
+keywords:
+  - onboarding
+  - ai
+  - knowledge-graph
+  - engineering

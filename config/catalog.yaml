@@ -1,0 +1,54 @@
+# Sentinel Day One - catalog configuration
+# This file tells Sentinel which HRIS to use and how to map its fields.
+# Set CATALOG_SOURCE env var to override the catalog key below.
+#
+# Supported catalogs: workday | servicenow | bamboohr | mock
+#
+# The 'mock' catalog is the default. It requires no credentials and works
+# out of the box for local development. Switch to your real catalog for production.
+
+catalog: mock
+
+# ─── Workday ─────────────────────────────────────────────────────────────────
+# Uncomment and fill in to use Workday. Set WORKDAY_CLIENT_ID and
+# WORKDAY_CLIENT_SECRET in .env (never commit credentials here).
+#
+# catalog: workday
+# endpoint: https://your-tenant.workday.com
+# auth:
+#   type: oauth2
+#   client_id_env: WORKDAY_CLIENT_ID
+#   client_secret_env: WORKDAY_CLIENT_SECRET
+# field_mapping:
+#   employee_id: primaryWorkEmail
+#   team: organization.descriptor
+#   role: jobProfile.descriptor
+#   manager: manager.primaryWorkEmail
+#   start_date: hireDate
+
+# ─── ServiceNow ──────────────────────────────────────────────────────────────
+# catalog: servicenow
+# endpoint: https://your-instance.service-now.com
+# auth:
+#   type: basic
+#   username_env: SNOW_USERNAME
+#   password_env: SNOW_PASSWORD
+# field_mapping:
+#   employee_id: email
+#   team: department.name
+#   role: title
+#   manager: manager.email
+#   start_date: start_date
+
+# ─── BambooHR ─────────────────────────────────────────────────────────────────
+# catalog: bamboohr
+# auth:
+#   type: apikey
+#   subdomain_env: BAMBOOHR_SUBDOMAIN
+#   apikey_env: BAMBOOHR_API_KEY
+# field_mapping:
+#   employee_id: workEmail
+#   team: department
+#   role: jobTitle
+#   manager: supervisorEmail
+#   start_date: hireDate

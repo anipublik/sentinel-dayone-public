@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sentinel.fullname" . }}-config
+  labels:
+    {{- include "sentinel.labels" . | nindent 4 }}
+data:
+  EMBEDDING_MODEL: {{ .Values.config.embeddingModel | quote }}
+  ANTHROPIC_MODEL: {{ .Values.config.anthropicModel | quote }}
+  CORS_ORIGINS: {{ .Values.config.corsOrigins | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  METRICS_ENABLED: {{ .Values.config.metricsEnabled | quote }}
+  AUTO_APPLY_SCHEMA: {{ .Values.config.autoApplySchema | quote }}
+  NEO4J_URI: {{ printf "bolt://%s-neo4j:7687" (include "sentinel.fullname" .) | quote }}
+  NEO4J_USER: "neo4j"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sentinel.fullname" . }}-roles
+  labels:
+    {{- include "sentinel.labels" . | nindent 4 }}
+data:
+  roles.yaml: |
+    # Sentinel Day One — role-to-access-topology mapping
+    # Edit this ConfigMap to update role access without redeploying.
+    roles:
+      sre:
+        repos:
+          owned: [infra-core, k8s-platform, sre-runbooks]
+          shared_write:
+            - "payments-api/instrumentation/**"
+            - "payments-api/health/**"
+          read: [payments-api, fraud-api, user-api]
+        test_repos:
+          owned: [chaos-tests, synthetic-monitors]
+          read: [e2e-tests, load-tests]
+        shared_libs: [reliability-libs, otel-collectors]
+        clusters: [prod-us-east, prod-us-west, staging, dev]
+        vault_scope: sre/platform
+        observability_role: admin
+        ci_pipelines:
+          "infra-*": write
+          "*": read
+        alert_rules: owner
+        test_management: read
+      backend:
+        repos:
+          owned: ["${team_repo}"]
+          shared_write: []
+          read: [shared-libs, "${team_repo}-infra", reliability-libs]
+        test_repos:
+          owned: []
+          read: [e2e-tests, api-test-suite]
+        shared_libs: []
+        clusters: [staging, dev]
+        vault_scope: "app/${team_repo}"
+        observability_role: viewer
+        ci_pipelines:
+          "${team_repo}-*": write
+        alert_rules: read
+        test_management: read
+      qa:
+        repos:
+          owned: [e2e-tests, api-test-suite, load-tests]
+          shared_write: []
+          read: [payments-api, fraud-api, user-api, infra-core]
+        test_repos:
+          owned: [e2e-tests, api-test-suite, load-tests]
+          read: []
+        shared_libs: []
+        clusters: [staging, dev]
+        vault_scope: staging-test
+        observability_role: viewer
+        ci_pipelines:
+          "e2e-*": write
+          "load-*": write
+        alert_rules: none
+        test_management: owner

@@ -1,0 +1,42 @@
+{{- if .Values.ingestion.enabled }}
+{{- $root := . }}
+{{- range $source, $schedule := .Values.ingestion.schedule }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "sentinel.fullname" $root }}-ingest-{{ $source }}
+  labels:
+    {{- include "sentinel.labels" $root | nindent 4 }}
+    sentinel/component: ingestion
+    sentinel/source: {{ $source }}
+spec:
+  schedule: {{ $schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: ingest
+              image: "{{ $root.Values.image.repository }}:{{ $root.Values.image.tag }}"
+              imagePullPolicy: {{ $root.Values.image.pullPolicy }}
+              command: ["sentinel", "ingest", "--source", {{ $source | quote }}]
+              envFrom:
+                - secretRef:
+                    name: {{ include "sentinel.fullname" $root }}-secrets
+                - configMapRef:
+                    name: {{ include "sentinel.fullname" $root }}-config
+              volumeMounts:
+                - name: roles-config
+                  mountPath: /app/config
+                  readOnly: true
+          volumes:
+            - name: roles-config
+              configMap:
+                name: {{ include "sentinel.fullname" $root }}-roles
+{{- end }}
+{{- end }}

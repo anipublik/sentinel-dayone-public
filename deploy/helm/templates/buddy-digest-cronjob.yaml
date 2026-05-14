@@ -1,0 +1,41 @@
+{{- if .Values.buddyDigest.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "sentinel.fullname" . }}-buddy-digest
+  labels:
+    {{- include "sentinel.labels" . | nindent 4 }}
+    sentinel/component: buddy-digest
+spec:
+  schedule: {{ .Values.buddyDigest.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: buddy-digest
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                - sentinel
+                - buddy-digest
+                - --since-days
+                - {{ .Values.buddyDigest.sinceDays | quote }}
+              envFrom:
+                - secretRef:
+                    name: {{ include "sentinel.fullname" . }}-secrets
+                - configMapRef:
+                    name: {{ include "sentinel.fullname" . }}-config
+              volumeMounts:
+                - name: roles-config
+                  mountPath: /app/config
+                  readOnly: true
+          volumes:
+            - name: roles-config
+              configMap:
+                name: {{ include "sentinel.fullname" . }}-roles
+{{- end }}
