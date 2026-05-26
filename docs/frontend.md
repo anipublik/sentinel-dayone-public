@@ -82,7 +82,7 @@ Personas and sample questions come from `GET /api/v1/personas` and `GET /api/v1/
 
 The frontend has no secrets. It uses same-origin requests in production (served by FastAPI) and Vite's dev proxy locally. No `VITE_*` env vars are required for the default setup.
 
-To point the dev UI at a remote API, change the `proxy` target in `vite.config.ts` or add a `VITE_API_BASE` pattern in `api.ts` if you need cross-origin deployment later.
+To point the dev UI at a remote API, change the `proxy` target in `vite.config.ts`.
 
 ## CI
 

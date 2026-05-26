@@ -60,22 +60,36 @@ sentinel-day-one/
 
 ## Quick start
 
+### Prerequisites
+
+- Docker and Docker Compose
+- Python ≥ 3.11
+- Node.js ≥ 18 and npm (for the frontend)
+- An Anthropic API key — **always required** for all agent queries
+- An OpenAI API key — optional; embeddings fall back to a local hash embedder without one
+
 ### Backend
 
 ```bash
-# Local Neo4j + the agent service
-docker-compose up -d
+# Start Neo4j only (bolt: 7687, browser: 7474)
+docker-compose up -d neo4j
+# Wait for Neo4j to become healthy before continuing
+docker-compose ps   # Status column should show "healthy"
+
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 
 # Install Python package
-pip install -e ".[dev]" --break-system-packages
+pip install -e ".[dev]"
 
-# Copy and edit env (use CATALOG_SOURCE=mock for local demo)
+# Copy and fill in env — set ANTHROPIC_API_KEY at minimum
 cp .env.example .env
 
 # Apply Neo4j schema
 sentinel schema init
 
-# Seed the chaos-drill demo storyline (optional — works offline without OpenAI)
+# Seed the chaos-drill demo storyline (optional — works without OpenAI)
 sentinel seed drill --clear
 
 # Run the API
@@ -112,11 +126,14 @@ sentinel serve
 
 The Docker image builds the frontend in a multi-stage Dockerfile and ships `frontend/dist/` with the Python app.
 
+To run the full stack (Neo4j + app) entirely in Docker: `docker-compose --profile app up -d`.
+
 ### Demo without real connectors
 
 ```bash
 export CATALOG_SOURCE=mock
-docker-compose up -d
+docker-compose up -d neo4j
+# Wait for Neo4j: docker-compose ps
 sentinel schema init
 sentinel seed drill --clear
 sentinel serve
@@ -176,7 +193,7 @@ Three files drive most behavior:
 2. `config/roles.yaml` — access topology mapping per role
 3. `config/catalog.yaml` — which employee catalog to use and field mappings
 
-For local development set `CATALOG_SOURCE=mock`. Without `OPENAI_API_KEY`, embeddings fall back to a deterministic local hash embedder (sufficient for the chaos-drill demo).
+`ANTHROPIC_API_KEY` is required for all agent queries. For local development set `CATALOG_SOURCE=mock`. Without `OPENAI_API_KEY`, embeddings fall back to a deterministic local hash embedder (sufficient for the chaos-drill demo).
 
 Buddy digest Slack delivery: set `SLACK_BUDDY_WEBHOOK_URL` or `SLACK_WEBHOOK_URL` (optional `SLACK_BUDDY_CHANNEL`).
 
@@ -212,10 +229,32 @@ CI runs Python tests, Ruff, a frontend build job, and a Docker build.
 
 ## Deploy
 
-Helm chart: `deploy/helm/`. Enable optional cron jobs in `values.yaml`:
+Helm chart at `deploy/helm/`. Before deploying, set these fields in `values.yaml` (or a `values-prod.yaml` overlay):
 
-- `ingestion.*` — connector sync schedules
-- `buddyDigest.enabled` — weekly buddy digest (`sentinel buddy-digest`)
+| Field | What to set |
+|-------|-------------|
+| `image.repository` | Your container registry path, e.g. `ghcr.io/your-org/sentinel-day-one` |
+| `image.tag` | The image tag to deploy |
+| `ingress.hosts[0].host` | Your public hostname, e.g. `sentinel.your-domain.com` |
+| `ingress.tls[0].hosts[0]` | Same hostname for TLS |
+| `catalog.source` | `workday`, `servicenow`, `bamboohr`, or `mock` |
+| `neo4j.password` | Change from the default `changeme-in-production` |
+
+**Never commit secrets to `values.yaml`.** Pass them at deploy time with `--set`:
+
+```bash
+helm upgrade --install sentinel deploy/helm/ \
+  --set secrets.anthropicApiKey=sk-ant-... \
+  --set secrets.openaiApiKey=sk-... \
+  --set secrets.workdayClientId=... \
+  --set secrets.workdayClientSecret=... \
+  -f values-prod.yaml
+```
+
+Optional cron jobs (off by default — enable in `values.yaml`):
+
+- `ingestion.enabled` — connector sync schedules (GitHub hourly, Slack every 30 min, Linear every 15 min, Confluence nightly)
+- `buddyDigest.enabled` — weekly buddy digest (`sentinel buddy-digest`) on Mondays at 09:00
 
 ## License
 
